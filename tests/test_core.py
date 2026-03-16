@@ -946,3 +946,135 @@ def test_fin_task_due_date_none_when_missing() -> None:
         body="",
     )
     assert task.due_date is None
+
+
+# --- list_all_tasks ---
+
+
+def test_list_all_tasks_across_pools(
+    mock_alph_interface: dict[str, MagicMock], tmp_path: Path
+) -> None:
+    from fin.core import list_all_tasks
+
+    pools_dir = tmp_path / "pools"
+    (pools_dir / "work").mkdir(parents=True)
+    (pools_dir / "personal").mkdir(parents=True)
+
+    def list_side_effect(
+        pool_path: Path, *, statuses: set[str] | None = None
+    ) -> list[NodeSummary]:
+        if "work" in str(pool_path):
+            return [
+                NodeSummary(
+                    node_id="work11aaa222",
+                    context="work task",
+                    node_type="snapshot",
+                    timestamp="2026-03-13T00:00:00+00:00",
+                    source="fin",
+                )
+            ]
+        return [
+            NodeSummary(
+                node_id="pers11bbb333",
+                context="personal task",
+                node_type="snapshot",
+                timestamp="2026-03-13T00:00:00+00:00",
+                source="fin",
+            )
+        ]
+
+    def show_side_effect(pool_path: Path, node_id: str) -> NodeDetail:
+        ctx = "work task" if node_id == "work11aaa222" else "personal task"
+        return NodeDetail(
+            node_id=node_id,
+            context=ctx,
+            node_type="snapshot",
+            timestamp="2026-03-13T00:00:00+00:00",
+            source="fin",
+            creator="test@test.com",
+            body="",
+            tags=[],
+            meta={},
+        )
+
+    mock_alph_interface["alph_list_nodes"].side_effect = list_side_effect
+    mock_alph_interface["alph_show_node"].side_effect = show_side_effect
+
+    tasks = list_all_tasks(
+        pools_dir=pools_dir,
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert len(tasks) == 2
+    contexts = {t.context for t in tasks}
+    assert contexts == {"work task", "personal task"}
+
+
+def test_list_all_tasks_includes_pool_name(
+    mock_alph_interface: dict[str, MagicMock], tmp_path: Path
+) -> None:
+    from fin.core import list_all_tasks
+
+    pools_dir = tmp_path / "pools"
+    (pools_dir / "work").mkdir(parents=True)
+
+    mock_alph_interface["alph_list_nodes"].return_value = [
+        NodeSummary(
+            node_id="abc123def456",
+            context="test task",
+            node_type="snapshot",
+            timestamp="2026-03-13T00:00:00+00:00",
+            source="fin",
+        )
+    ]
+    mock_alph_interface["alph_show_node"].return_value = NodeDetail(
+        node_id="abc123def456",
+        context="test task",
+        node_type="snapshot",
+        timestamp="2026-03-13T00:00:00+00:00",
+        source="fin",
+        creator="test@test.com",
+        body="",
+        tags=[],
+        meta={},
+    )
+
+    tasks = list_all_tasks(
+        pools_dir=pools_dir,
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert len(tasks) == 1
+    assert tasks[0].pool_name == "work"
+
+
+# --- link_tasks ---
+
+
+def test_link_tasks(
+    mock_alph_interface: dict[str, MagicMock], isolated_pool: Path
+) -> None:
+    from fin.core import link_tasks
+    from tests.conftest import _write_node
+
+    _write_node(isolated_pool, "aaa111bbb222")
+    _write_node(isolated_pool, "ccc333ddd444")
+    link_tasks(
+        "aaa111",
+        "ccc333",
+        pool_path=isolated_pool,
+    )
+    mock_alph_interface["alph_update_node"].assert_called_once()
+    call_kwargs = mock_alph_interface["alph_update_node"].call_args.kwargs
+    assert call_kwargs["node_id"] == "aaa111bbb222"
+    assert "ccc333ddd444" in call_kwargs.get("related_add", [])
+
+
+def test_list_all_tasks_empty_pools_dir(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import list_all_tasks
+
+    tasks = list_all_tasks(
+        pools_dir=Path("/tmp/nonexistent"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert tasks == []
