@@ -79,6 +79,7 @@ class FinTask:
     tags: list[str]
     meta: dict[str, object]
     body: str
+    pool_name: str = ""
 
     @property
     def short_id(self) -> str:
@@ -262,6 +263,42 @@ def list_tasks(
     return tasks
 
 
+def list_all_tasks(
+    *,
+    pools_dir: Path,
+    global_config_dir: Path,
+    statuses: set[str] | None = None,
+    days: int | None = None,
+) -> list[FinTask]:
+    """List tasks across all pools in the tasks registry."""
+    from fin.config import list_pools
+
+    all_tasks: list[FinTask] = []
+    pool_names = list_pools(pools_dir)
+    for pool_name in pool_names:
+        tasks = list_tasks(
+            pool=pool_name,
+            pools_dir=pools_dir,
+            global_config_dir=global_config_dir,
+            statuses=statuses,
+            days=days,
+        )
+        for task in tasks:
+            all_tasks.append(
+                FinTask(
+                    node_id=task.node_id,
+                    context=task.context,
+                    timestamp=task.timestamp,
+                    status=task.status,
+                    tags=task.tags,
+                    meta=task.meta,
+                    body=task.body,
+                    pool_name=pool_name,
+                )
+            )
+    return all_tasks
+
+
 def add_completed_task(
     content: str,
     *,
@@ -321,6 +358,25 @@ def close_task(
         status="archived",
     )
     return full_id
+
+
+# --- Linking ---
+
+
+def link_tasks(
+    source_id: str,
+    target_id: str,
+    *,
+    pool_path: Path,
+) -> None:
+    """Add a related_to reference from source task to target task."""
+    full_source = resolve_short_id(source_id, pool_path)
+    full_target = resolve_short_id(target_id, pool_path)
+    alph_update_node(
+        pool_path=pool_path,
+        node_id=full_source,
+        related_add=[full_target],
+    )
 
 
 # --- Tag filtering ---

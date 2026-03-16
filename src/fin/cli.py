@@ -33,6 +33,8 @@ from fin.core import (
     filter_by_tags,
     format_short_id,
     get_blocked_tasks,
+    link_tasks,
+    list_all_tasks,
     list_tasks,
     resolve_short_id,
 )
@@ -97,6 +99,7 @@ def main(
     days: Annotated[int | None, typer.Option("-d", "--days", help="Show tasks from the last N days.")] = None,
     tags: Annotated[str | None, typer.Option("-t", "--tags", help="Filter by tag expression.")] = None,
     status: Annotated[str | None, typer.Option("-s", "--status", help="Comma-separated statuses: open,done,dismissed")] = None,
+    all_pools: Annotated[bool, typer.Option("--all", help="List tasks across all pools.")] = False,
 ) -> None:
     """fin -- daily task CLI.
 
@@ -105,7 +108,7 @@ def main(
     if ctx.invoked_subcommand is not None:
         return
 
-    _do_list(pool=pool, days=days, tags=tags, status=status)
+    _do_list(pool=pool, days=days, tags=tags, status=status, all_pools=all_pools)
 
 
 def _resolve_statuses(status_str: str | None) -> set[str] | None:
@@ -144,17 +147,26 @@ def _do_list(
     tags: str | None = None,
     status: str | None = None,
     show_done: bool = False,
+    all_pools: bool = False,
 ) -> None:
     statuses = _resolve_statuses(status)
     if show_done and statuses is None:
         statuses = {"archived"}
-    tasks = list_tasks(
-        pool=pool,
-        pools_dir=_pools_dir(),
-        global_config_dir=_config_dir(),
-        statuses=statuses,
-        days=days,
-    )
+    if all_pools:
+        tasks = list_all_tasks(
+            pools_dir=_pools_dir(),
+            global_config_dir=_config_dir(),
+            statuses=statuses,
+            days=days,
+        )
+    else:
+        tasks = list_tasks(
+            pool=pool,
+            pools_dir=_pools_dir(),
+            global_config_dir=_config_dir(),
+            statuses=statuses,
+            days=days,
+        )
     if tags:
         tasks = filter_by_tags(tasks, tags)
 
@@ -186,9 +198,10 @@ def list_cmd(
     days: Annotated[int | None, typer.Option("-d", "--days", help="Show tasks from the last N days.")] = None,
     tags: Annotated[str | None, typer.Option("-t", "--tags", help="Filter by tag expression.")] = None,
     status: Annotated[str | None, typer.Option("-s", "--status", help="Comma-separated statuses.")] = None,
+    all_pools: Annotated[bool, typer.Option("--all", help="List tasks across all pools.")] = False,
 ) -> None:
     """List open tasks."""
-    _do_list(pool=pool, days=days, tags=tags, status=status)
+    _do_list(pool=pool, days=days, tags=tags, status=status, all_pools=all_pools)
 
 
 @app.command()
@@ -232,6 +245,74 @@ def show(
         body=detail.body,
     )
     console.print(render_task_detail(task))
+
+
+@app.command()
+def link(
+    source: Annotated[str, typer.Argument(help="Source task ID or prefix.")],
+    target: Annotated[str, typer.Argument(help="Target task ID or prefix.")],
+    pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
+) -> None:
+    """Link two tasks with a related_to reference."""
+    cfg = load_fin_config()
+    resolved_pool = pool or cfg.default_pool
+    pool_path = get_pool_path(resolved_pool, _pools_dir())
+
+    try:
+        link_tasks(source, target, pool_path=pool_path)
+    except (AmbiguousIDError, UnknownIDError) as e:
+        console.print(f"Error: {e}")
+        raise typer.Exit(code=1) from e
+
+    console.print(f"Linked: {format_short_id(source)} → {format_short_id(target)}")
+
+
+def _node_file_path(task_id: str, pool_path: Path) -> Path:
+    """Resolve a task ID to its file path on disk."""
+    full_id = resolve_short_id(task_id, pool_path)
+    for subdir in ("snapshots", "live"):
+        candidate = pool_path / subdir / f"{full_id}.md"
+        if candidate.exists():
+            return candidate
+    return pool_path / "snapshots" / f"{full_id}.md"
+
+
+@app.command()
+def log(
+    task_id: Annotated[str, typer.Argument(help="Task ID or prefix.")],
+    pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
+) -> None:
+    """Show git history for a task."""
+    cfg = load_fin_config()
+    resolved_pool = pool or cfg.default_pool
+    pool_path = get_pool_path(resolved_pool, _pools_dir())
+
+    try:
+        node_path = _node_file_path(task_id, pool_path)
+    except (AmbiguousIDError, UnknownIDError) as e:
+        console.print(f"Error: {e}")
+        raise typer.Exit(code=1) from e
+
+    subprocess.run(["git", "log", "--follow", "-p", str(node_path)], check=False)
+
+
+@app.command()
+def diff(
+    task_id: Annotated[str, typer.Argument(help="Task ID or prefix.")],
+    pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
+) -> None:
+    """Show uncommitted changes for a task."""
+    cfg = load_fin_config()
+    resolved_pool = pool or cfg.default_pool
+    pool_path = get_pool_path(resolved_pool, _pools_dir())
+
+    try:
+        node_path = _node_file_path(task_id, pool_path)
+    except (AmbiguousIDError, UnknownIDError) as e:
+        console.print(f"Error: {e}")
+        raise typer.Exit(code=1) from e
+
+    subprocess.run(["git", "diff", str(node_path)], check=False)
 
 
 def _do_edit(*, pool: str | None = None, fmt: str = "yaml") -> None:

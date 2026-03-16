@@ -183,6 +183,27 @@ def test_list_with_status_filter(
     assert "archived" in call_kwargs.get("statuses", set())
 
 
+# --- list --all ---
+
+
+@patch("fin.cli.list_all_tasks")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_list_all_pools(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_list_all: MagicMock,
+) -> None:
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    mock_list_all.return_value = [
+        _make_fin_task(node_id="aaa111bbb222", context="work task"),
+        _make_fin_task(node_id="ccc333ddd444", context="personal task"),
+    ]
+    result = runner.invoke(app, ["list", "--all"])
+    assert result.exit_code == 0
+    mock_list_all.assert_called_once()
+
+
 # --- close ---
 
 
@@ -616,6 +637,67 @@ def test_status_change_validation_error(
     result = runner.invoke(app, ["dismiss", "abc123"])
     assert result.exit_code == 1
     assert "error" in result.output.lower()
+
+
+# --- log / diff ---
+
+
+@patch("fin.cli.subprocess.run")
+@patch("fin.cli.resolve_short_id")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_log_command(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_resolve: MagicMock,
+    mock_subprocess: MagicMock,
+) -> None:
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    mock_resolve.return_value = "abc123def456"
+    result = runner.invoke(app, ["log", "abc123"])
+    assert result.exit_code == 0
+    mock_subprocess.assert_called_once()
+    cmd = mock_subprocess.call_args[0][0]
+    assert "git" in cmd
+    assert "log" in cmd
+
+
+@patch("fin.cli.subprocess.run")
+@patch("fin.cli.resolve_short_id")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_diff_command(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_resolve: MagicMock,
+    mock_subprocess: MagicMock,
+) -> None:
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    mock_resolve.return_value = "abc123def456"
+    result = runner.invoke(app, ["diff", "abc123"])
+    assert result.exit_code == 0
+    mock_subprocess.assert_called_once()
+    cmd = mock_subprocess.call_args[0][0]
+    assert "git" in cmd
+    assert "diff" in cmd
+
+
+# --- link ---
+
+
+@patch("fin.cli.link_tasks")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_link_command(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_link: MagicMock,
+) -> None:
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    result = runner.invoke(app, ["link", "aaa111", "bbb222"])
+    assert result.exit_code == 0
+    assert "linked" in result.output.lower()
+    mock_link.assert_called_once()
 
 
 # --- edit command ---

@@ -128,6 +128,7 @@ def alph_update_node(
     meta: dict[str, object] | None = None,
     content: str | None = None,
     context: str | None = None,
+    related_add: list[str] | None = None,
 ) -> UpdateResult:
     """Update a node's frontmatter and/or body."""
     return update_node(
@@ -140,4 +141,5 @@ def alph_update_node(
         meta=meta,
         content=content,
         context=context,
+        related_add=related_add,
     )
