@@ -1,0 +1,63 @@
+[project]
+name = "fin-cli"
+version = "0.1.0"
+description = "Daily task CLI built on AlpheusCEF"
+authors = [
+    {name = "Chase Pettet"}
+]
+readme = "README.md"
+license = {text = "AGPL-3.0-or-later"}
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.0",
+    "alph-cli",
+]
+
+[tool.poetry.dependencies]
+alph-cli = {path = "../alph-cli", develop = true}
+
+[project.scripts]
+fin = "fin.cli:app"
+fins = "fin.cli:fins_app"
+
+[tool.poetry]
+packages = [{include = "fin", from = "src"}]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0"
+pytest-cov = ">=5.0"
+mypy = ">=1.10"
+ruff = ">=0.4"
+types-PyYAML = ">=6.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src/fin"]
+
+[[tool.mypy.overrides]]
+module = "alph.*"
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/fin/cli.py" = ["E501"]
+"tests/*.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "--tb=short"
