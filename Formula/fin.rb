@@ -5,20 +5,30 @@ class Fin < Formula
   sha256 "246cc3464088f0e090eb172ba9597fbf73ab00416749ce9ba5d0903b0759d08a"
   license "AGPL-3.0-or-later"
 
-  depends_on "AlpheusCEF/tap/alph"
+  preserve_rpath
+
   depends_on "python@3.12"
 
+  resource "alph-cli" do
+    url "https://github.com/AlpheusCEF/alph-cli/releases/download/v0.1.35/alph_cli-0.1.35.tar.gz"
+    sha256 "4de3b76b3d3807c03e42a9d235a6568f39de10f3fe580a439eb029ec5aa03bb0"
+  end
+
   def install
-    # Re-use the venv that alph created — fin is a thin layer on top.
-    # If alph is installed, its libexec venv has all the shared deps.
-    alph_venv = Formula["alph"].opt_libexec
+    python3 = Formula["python@3.12"].opt_bin/"python3.12"
+    system python3, "-m", "venv", libexec
 
-    # Install fin into alph's venv so imports resolve
-    system alph_venv/"bin/pip", "install", "--no-cache-dir", "--no-deps", buildpath
+    # Install alph-cli first (fin's dependency)
+    resource("alph-cli").stage do
+      system libexec/"bin/pip", "install", "--no-cache-dir", "."
+    end
 
-    bin.install_symlink alph_venv/"bin/fin"
-    bin.install_symlink alph_venv/"bin/fins"
-    bin.install_symlink alph_venv/"bin/fine"
+    # Install fin-cli
+    system libexec/"bin/pip", "install", "--no-cache-dir", "--no-deps", buildpath
+
+    bin.install_symlink libexec/"bin/fin"
+    bin.install_symlink libexec/"bin/fins"
+    bin.install_symlink libexec/"bin/fine"
   end
 
   test do
