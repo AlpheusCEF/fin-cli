@@ -616,3 +616,135 @@ def test_status_change_validation_error(
     result = runner.invoke(app, ["dismiss", "abc123"])
     assert result.exit_code == 1
     assert "error" in result.output.lower()
+
+
+# --- edit command ---
+
+
+def _editor_that_closes_task(tmp_path_str: str) -> None:
+    """Simulate editor: change [ ] to [x] in the temp file."""
+    text = Path(tmp_path_str).read_text()
+    text = text.replace("status: active", "status: archived")
+    Path(tmp_path_str).write_text(text)
+
+
+@patch("fin.cli.apply_edit_actions")
+@patch("fin.cli.subprocess.run")
+@patch("fin.cli.list_tasks")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_edit_with_no_changes(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_list: MagicMock,
+    mock_subprocess: MagicMock,
+    mock_apply: MagicMock,
+) -> None:
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    mock_list.return_value = [_make_fin_task(context="test task")]
+
+    def noop_editor(cmd: list[str], check: bool = True) -> None:
+        pass  # Don't modify file — no changes
+
+    mock_subprocess.side_effect = noop_editor
+    result = runner.invoke(app, ["edit"])
+    assert result.exit_code == 0
+    assert "no changes" in result.output.lower()
+    mock_apply.assert_not_called()
+
+
+@patch("fin.cli.apply_edit_actions")
+@patch("fin.cli.subprocess.run")
+@patch("fin.cli.list_tasks")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_edit_applies_changes(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_list: MagicMock,
+    mock_subprocess: MagicMock,
+    mock_apply: MagicMock,
+) -> None:
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    mock_list.return_value = [_make_fin_task(context="test task")]
+    mock_apply.return_value = 1
+
+    def editor_closes_task(cmd: list[str], check: bool = True) -> None:
+        _editor_that_closes_task(cmd[1])
+
+    mock_subprocess.side_effect = editor_closes_task
+    result = runner.invoke(app, ["edit"])
+    assert result.exit_code == 0
+    assert "applied 1 change" in result.output.lower()
+    mock_apply.assert_called_once()
+
+
+@patch("fin.cli.apply_edit_actions")
+@patch("fin.cli.subprocess.run")
+@patch("fin.cli.list_tasks")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_edit_with_pool_option(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_list: MagicMock,
+    mock_subprocess: MagicMock,
+    mock_apply: MagicMock,
+) -> None:
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    mock_list.return_value = []
+    mock_subprocess.side_effect = lambda cmd, check=True: None
+    result = runner.invoke(app, ["edit", "-p", "work"])
+    assert result.exit_code == 0
+    mock_list.assert_called_once()
+    assert mock_list.call_args.kwargs.get("pool") == "work"
+
+
+@patch("fin.cli.apply_edit_actions")
+@patch("fin.cli.subprocess.run")
+@patch("fin.cli.list_tasks")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_edit_compact_format(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_list: MagicMock,
+    mock_subprocess: MagicMock,
+    mock_apply: MagicMock,
+) -> None:
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    mock_list.return_value = [_make_fin_task(context="test task")]
+    mock_subprocess.side_effect = lambda cmd, check=True: None
+    result = runner.invoke(app, ["edit", "--format", "compact"])
+    assert result.exit_code == 0
+
+
+# --- fine entry point ---
+
+
+def test_fine_entry_point_exists() -> None:
+    """Verify fine_app is importable."""
+    from fin.cli import fine_app
+
+    assert fine_app is not None
+
+
+@patch("fin.cli.apply_edit_actions")
+@patch("fin.cli.subprocess.run")
+@patch("fin.cli.list_tasks")
+@patch("fin.cli.resolve_pools_dir")
+@patch("fin.cli.resolve_global_config_dir")
+def test_fine_invocation(
+    mock_config_dir: MagicMock,
+    mock_pools_dir: MagicMock,
+    mock_list: MagicMock,
+    mock_subprocess: MagicMock,
+    mock_apply: MagicMock,
+) -> None:
+    from fin.cli import fine_app
+
+    _stub_dirs(mock_pools_dir, mock_config_dir)
+    mock_list.return_value = []
+    mock_subprocess.side_effect = lambda cmd, check=True: None
+    result = runner.invoke(fine_app, [])
+    assert result.exit_code == 0

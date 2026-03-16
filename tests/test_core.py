@@ -689,6 +689,252 @@ def test_fin_task_is_overdue_invalid_date() -> None:
     assert task.is_overdue is False
 
 
+# --- apply_edit_actions ---
+
+
+def test_apply_close_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import CloseAction
+
+    actions: list[object] = [CloseAction(node_id="abc123def456")]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    mock_alph_interface["alph_set_node_status"].assert_called_once()
+    call_kwargs = mock_alph_interface["alph_set_node_status"].call_args.kwargs
+    assert call_kwargs["status"] == "archived"
+
+
+def test_apply_dismiss_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import DismissAction
+
+    actions: list[object] = [DismissAction(node_id="abc123def456")]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    call_kwargs = mock_alph_interface["alph_set_node_status"].call_args.kwargs
+    assert call_kwargs["status"] == "suppressed"
+
+
+def test_apply_reopen_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import ReopenAction
+
+    actions: list[object] = [ReopenAction(node_id="abc123def456")]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    call_kwargs = mock_alph_interface["alph_set_node_status"].call_args.kwargs
+    assert call_kwargs["status"] == "active"
+
+
+def test_apply_add_tag_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import AddTagAction
+
+    actions: list[object] = [
+        AddTagAction(node_id="abc123def456", tags=["urgent"])
+    ]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    mock_alph_interface["alph_update_node"].assert_called_once()
+
+
+def test_apply_remove_tag_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import RemoveTagAction
+
+    actions: list[object] = [
+        RemoveTagAction(node_id="abc123def456", tags=["urgent"])
+    ]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    mock_alph_interface["alph_update_node"].assert_called_once()
+
+
+def test_apply_update_content_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import UpdateContentAction
+
+    actions: list[object] = [
+        UpdateContentAction(node_id="abc123def456", content="new content")
+    ]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    mock_alph_interface["alph_update_node"].assert_called_once()
+    call_kwargs = mock_alph_interface["alph_update_node"].call_args.kwargs
+    assert call_kwargs["context"] == "new content"
+
+
+def test_apply_update_notes_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import UpdateNotesAction
+
+    actions: list[object] = [
+        UpdateNotesAction(node_id="abc123def456", notes="new notes")
+    ]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    mock_alph_interface["alph_update_node"].assert_called_once()
+    call_kwargs = mock_alph_interface["alph_update_node"].call_args.kwargs
+    assert call_kwargs["content"] == "new notes"
+
+
+def test_apply_set_due_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import SetDueAction
+
+    actions: list[object] = [
+        SetDueAction(node_id="abc123def456", due="2026-04-01")
+    ]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    mock_alph_interface["alph_update_node"].assert_called_once()
+    call_kwargs = mock_alph_interface["alph_update_node"].call_args.kwargs
+    assert call_kwargs["meta"] == {"due": "2026-04-01"}
+
+
+def test_apply_set_due_action_clear(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import SetDueAction
+
+    actions: list[object] = [
+        SetDueAction(node_id="abc123def456", due=None)
+    ]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    call_kwargs = mock_alph_interface["alph_update_node"].call_args.kwargs
+    assert call_kwargs["meta"] == {}
+
+
+def test_apply_add_task_action(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import AddTaskAction
+
+    mock_alph_interface["alph_create_node"].return_value = NodeResult(
+        node_id="new123def456", path=Path("/tmp/new.md")
+    )
+    actions: list[object] = [
+        AddTaskAction(content="new task", tags=["work"], due="2026-04-01")
+    ]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 1
+    mock_alph_interface["alph_create_node"].assert_called_once()
+
+
+def test_apply_multiple_actions(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+    from fin.editor import CloseAction, DismissAction
+
+    actions: list[object] = [
+        CloseAction(node_id="abc123def456"),
+        DismissAction(node_id="def456abc123"),
+    ]
+    count = apply_edit_actions(
+        actions=actions,
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 2
+
+
+def test_apply_empty_actions(
+    mock_alph_interface: dict[str, MagicMock],
+) -> None:
+    from fin.core import apply_edit_actions
+
+    count = apply_edit_actions(
+        actions=[],
+        pool_path=Path("/tmp/pool"),
+        pool="default",
+        pools_dir=Path("/tmp/pools"),
+        global_config_dir=Path("/tmp/cfg"),
+    )
+    assert count == 0
+
+
 def test_fin_task_due_date_none_when_missing() -> None:
     task = FinTask(
         node_id="abc123def456",

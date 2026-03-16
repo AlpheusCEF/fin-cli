@@ -1,6 +1,7 @@
 """All fin business logic."""
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -12,6 +13,7 @@ from fin.alph_interface import (
     alph_list_nodes,
     alph_set_node_status,
     alph_show_node,
+    alph_update_node,
 )
 from fin.config import (
     ensure_fin_pool,
@@ -455,3 +457,86 @@ def get_blocked_tasks(
         if depends is not None and str(depends) in active_ids:
             blocked.add(task.node_id)
     return blocked
+
+
+# --- Edit action application ---
+
+
+def apply_edit_actions(
+    *,
+    actions: Sequence[object],
+    pool_path: Path,
+    pool: str,
+    pools_dir: Path,
+    global_config_dir: Path,
+) -> int:
+    """Apply editor diff actions to the pool. Returns count of actions applied."""
+    from fin.editor import (
+        AddTagAction,
+        AddTaskAction,
+        CloseAction,
+        DismissAction,
+        RemoveTagAction,
+        ReopenAction,
+        SetDueAction,
+        UpdateContentAction,
+        UpdateNotesAction,
+    )
+
+    applied = 0
+    for action in actions:
+        if isinstance(action, CloseAction):
+            alph_set_node_status(
+                pool_path=pool_path, node_id=action.node_id, status="archived"
+            )
+            applied += 1
+        elif isinstance(action, DismissAction):
+            alph_set_node_status(
+                pool_path=pool_path, node_id=action.node_id, status="suppressed"
+            )
+            applied += 1
+        elif isinstance(action, ReopenAction):
+            alph_set_node_status(
+                pool_path=pool_path, node_id=action.node_id, status="active"
+            )
+            applied += 1
+        elif isinstance(action, AddTagAction):
+            alph_update_node(
+                pool_path=pool_path, node_id=action.node_id, tags_add=action.tags
+            )
+            applied += 1
+        elif isinstance(action, RemoveTagAction):
+            alph_update_node(
+                pool_path=pool_path, node_id=action.node_id, tags_remove=action.tags
+            )
+            applied += 1
+        elif isinstance(action, UpdateContentAction):
+            alph_update_node(
+                pool_path=pool_path, node_id=action.node_id, context=action.content
+            )
+            applied += 1
+        elif isinstance(action, UpdateNotesAction):
+            alph_update_node(
+                pool_path=pool_path, node_id=action.node_id, content=action.notes
+            )
+            applied += 1
+        elif isinstance(action, SetDueAction):
+            meta: dict[str, object] = {"due": action.due} if action.due else {}
+            alph_update_node(
+                pool_path=pool_path, node_id=action.node_id, meta=meta
+            )
+            applied += 1
+        elif isinstance(action, AddTaskAction):
+            content_parts = [action.content]
+            for tag in action.tags:
+                content_parts.append(f"#{tag}")
+            if action.due:
+                content_parts.append(f"#due:{action.due}")
+            add_task(
+                " ".join(content_parts),
+                pool=pool,
+                pools_dir=pools_dir,
+                global_config_dir=global_config_dir,
+            )
+            applied += 1
+    return applied

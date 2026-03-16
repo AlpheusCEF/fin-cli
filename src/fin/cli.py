@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from fin.alph_interface import alph_set_node_status, alph_show_node, alph_update_node
+from fin.alph_interface import alph_set_node_status, alph_show_node
 from fin.config import (
     clear_default_pool,
     ensure_fin_pool,
@@ -28,6 +28,7 @@ from fin.core import (
     UnknownIDError,
     add_completed_task,
     add_task,
+    apply_edit_actions,
     close_task,
     filter_by_labels,
     format_short_id,
@@ -37,15 +38,6 @@ from fin.core import (
 )
 from fin.display import render_task_detail, render_task_list
 from fin.editor import (
-    AddTagAction,
-    AddTaskAction,
-    CloseAction,
-    DismissAction,
-    RemoveTagAction,
-    ReopenAction,
-    SetDueAction,
-    UpdateContentAction,
-    UpdateNotesAction,
     diff_edit_actions,
     parse_edit_doc,
     render_edit_doc,
@@ -62,6 +54,12 @@ app = typer.Typer(
 fins_app = typer.Typer(
     name="fins",
     help="Completed task view and logging.",
+    invoke_without_command=True,
+    context_settings=_help_settings,
+)
+fine_app = typer.Typer(
+    name="fine",
+    help="Bulk task editor. Opens tasks in your editor for quick review and editing.",
     invoke_without_command=True,
     context_settings=_help_settings,
 )
@@ -236,12 +234,8 @@ def show(
     console.print(render_task_detail(task))
 
 
-@app.command()
-def edit(
-    pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
-    fmt: Annotated[str, typer.Option("--format", help="Editor format: compact or yaml.")] = "yaml",
-) -> None:
-    """Open tasks in editor for bulk editing."""
+def _do_edit(*, pool: str | None = None, fmt: str = "yaml") -> None:
+    """Shared edit logic for fin edit and fine."""
     cfg = load_fin_config()
     resolved_pool = pool or cfg.default_pool
 
@@ -277,48 +271,23 @@ def edit(
         return
 
     pool_path = get_pool_path(resolved_pool, _pools_dir())
-    applied = 0
-    for action in actions:
-        if isinstance(action, CloseAction):
-            alph_set_node_status(pool_path=pool_path, node_id=action.node_id, status="archived")
-            applied += 1
-        elif isinstance(action, DismissAction):
-            alph_set_node_status(pool_path=pool_path, node_id=action.node_id, status="suppressed")
-            applied += 1
-        elif isinstance(action, ReopenAction):
-            alph_set_node_status(pool_path=pool_path, node_id=action.node_id, status="active")
-            applied += 1
-        elif isinstance(action, AddTagAction):
-            alph_update_node(pool_path=pool_path, node_id=action.node_id, tags_add=action.tags)
-            applied += 1
-        elif isinstance(action, RemoveTagAction):
-            alph_update_node(pool_path=pool_path, node_id=action.node_id, tags_remove=action.tags)
-            applied += 1
-        elif isinstance(action, UpdateContentAction):
-            alph_update_node(pool_path=pool_path, node_id=action.node_id, context=action.content)
-            applied += 1
-        elif isinstance(action, UpdateNotesAction):
-            alph_update_node(pool_path=pool_path, node_id=action.node_id, content=action.notes)
-            applied += 1
-        elif isinstance(action, SetDueAction):
-            meta: dict[str, object] = {"due": action.due} if action.due else {}
-            alph_update_node(pool_path=pool_path, node_id=action.node_id, meta=meta)
-            applied += 1
-        elif isinstance(action, AddTaskAction):
-            content_parts = [action.content]
-            for tag in action.tags:
-                content_parts.append(f"#{tag}")
-            if action.due:
-                content_parts.append(f"#due:{action.due}")
-            add_task(
-                " ".join(content_parts),
-                pool=resolved_pool,
-                pools_dir=_pools_dir(),
-                global_config_dir=_config_dir(),
-            )
-            applied += 1
-
+    applied = apply_edit_actions(
+        actions=actions,
+        pool_path=pool_path,
+        pool=resolved_pool,
+        pools_dir=_pools_dir(),
+        global_config_dir=_config_dir(),
+    )
     console.print(f"Applied {applied} change{'s' if applied != 1 else ''}.")
+
+
+@app.command()
+def edit(
+    pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
+    fmt: Annotated[str, typer.Option("--format", help="Editor format: compact or yaml.")] = "yaml",
+) -> None:
+    """Open tasks in editor for bulk editing."""
+    _do_edit(pool=pool, fmt=fmt)
 
 
 @app.command(name="list-labels")
@@ -435,6 +404,24 @@ def fins_main(
             labels=labels,
             show_done=True,
         )
+
+
+# --- fine app ---
+
+
+@fine_app.callback()
+def fine_main(
+    ctx: typer.Context,
+    pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
+    fmt: Annotated[str, typer.Option("--format", help="Editor format: compact or yaml.")] = "yaml",
+) -> None:
+    """fine -- bulk task editor.
+
+    Opens tasks in your editor for quick review and editing.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+    _do_edit(pool=pool, fmt=fmt)
 
 
 # --- pool commands ---
