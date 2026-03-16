@@ -20,6 +20,7 @@ alph-cli = {path = "../alph-cli", develop = true}
 [project.scripts]
 fin = "fin.cli:app"
 fins = "fin.cli:fins_app"
+fine = "fin.cli:fine_app"
 
 [tool.poetry]
 packages = [{include = "fin", from = "src"}]

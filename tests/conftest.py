@@ -46,7 +46,7 @@ def mock_alph_interface(monkeypatch: pytest.MonkeyPatch) -> dict[str, MagicMock]
         "alph_list_nodes": [alph_interface, core],
         "alph_show_node": [alph_interface, core],
         "alph_set_node_status": [alph_interface, core],
-        "alph_update_node": [alph_interface],
+        "alph_update_node": [alph_interface, core],
     }
     for name, modules in _patches.items():
         mock = MagicMock()
