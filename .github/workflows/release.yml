@@ -26,12 +26,9 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      - name: Install alph-cli from git
-        run: pip install "git+https://github.com/AlpheusCEF/alph-cli.git@main"
-
-      - name: Install dependencies (skip path dep)
+      - name: Install dependencies
         run: |
-          sed -i '/^\[tool.poetry.dependencies\]/,/^$/d' pyproject.toml
+          git clone https://github.com/AlpheusCEF/alph-cli.git ../alph-cli
           poetry install --no-interaction
 
       - name: Run tests

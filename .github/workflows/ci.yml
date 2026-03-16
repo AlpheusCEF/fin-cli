@@ -28,13 +28,10 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      - name: Install alph-cli from git
-        run: pip install "git+https://github.com/AlpheusCEF/alph-cli.git@main"
-
-      - name: Install dependencies (skip path dep)
+      - name: Install dependencies
         run: |
-          # Remove the local path override so poetry resolves alph-cli from the pip install
-          sed -i '/^\[tool.poetry.dependencies\]/,/^$/d' pyproject.toml
+          # Point the path dependency at the cloned alph-cli
+          git clone https://github.com/AlpheusCEF/alph-cli.git ../alph-cli
           poetry install --no-interaction
 
       - name: Run tests
