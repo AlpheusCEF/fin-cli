@@ -30,7 +30,7 @@ from fin.core import (
     add_task,
     apply_edit_actions,
     close_task,
-    filter_by_labels,
+    filter_by_tags,
     format_short_id,
     get_blocked_tasks,
     list_tasks,
@@ -95,7 +95,7 @@ def main(
     ctx: typer.Context,
     pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
     days: Annotated[int | None, typer.Option("-d", "--days", help="Show tasks from the last N days.")] = None,
-    labels: Annotated[str | None, typer.Option("-l", "--labels", help="Filter by label expression.")] = None,
+    tags: Annotated[str | None, typer.Option("-t", "--tags", help="Filter by tag expression.")] = None,
     status: Annotated[str | None, typer.Option("-s", "--status", help="Comma-separated statuses: open,done,dismissed")] = None,
 ) -> None:
     """fin -- daily task CLI.
@@ -105,7 +105,7 @@ def main(
     if ctx.invoked_subcommand is not None:
         return
 
-    _do_list(pool=pool, days=days, labels=labels, status=status)
+    _do_list(pool=pool, days=days, tags=tags, status=status)
 
 
 def _resolve_statuses(status_str: str | None) -> set[str] | None:
@@ -141,7 +141,7 @@ def _do_list(
     *,
     pool: str | None = None,
     days: int | None = None,
-    labels: str | None = None,
+    tags: str | None = None,
     status: str | None = None,
     show_done: bool = False,
 ) -> None:
@@ -155,8 +155,8 @@ def _do_list(
         statuses=statuses,
         days=days,
     )
-    if labels:
-        tasks = filter_by_labels(tasks, labels)
+    if tags:
+        tasks = filter_by_tags(tasks, tags)
 
     # Compute blocked tasks for display
     all_tasks = list_tasks(
@@ -184,21 +184,21 @@ def add(
 def list_cmd(
     pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
     days: Annotated[int | None, typer.Option("-d", "--days", help="Show tasks from the last N days.")] = None,
-    labels: Annotated[str | None, typer.Option("-l", "--labels", help="Filter by label expression.")] = None,
+    tags: Annotated[str | None, typer.Option("-t", "--tags", help="Filter by tag expression.")] = None,
     status: Annotated[str | None, typer.Option("-s", "--status", help="Comma-separated statuses.")] = None,
 ) -> None:
     """List open tasks."""
-    _do_list(pool=pool, days=days, labels=labels, status=status)
+    _do_list(pool=pool, days=days, tags=tags, status=status)
 
 
 @app.command()
 def done(
     pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
     days: Annotated[int | None, typer.Option("-d", "--days", help="Show tasks from the last N days.")] = None,
-    labels: Annotated[str | None, typer.Option("-l", "--labels", help="Filter by label expression.")] = None,
+    tags: Annotated[str | None, typer.Option("-t", "--tags", help="Filter by tag expression.")] = None,
 ) -> None:
     """List completed tasks."""
-    _do_list(pool=pool, days=days, labels=labels, show_done=True)
+    _do_list(pool=pool, days=days, tags=tags, show_done=True)
 
 
 @app.command()
@@ -290,11 +290,11 @@ def edit(
     _do_edit(pool=pool, fmt=fmt)
 
 
-@app.command(name="list-labels")
-def list_labels(
+@app.command(name="tags")
+def list_tags_cmd(
     pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
 ) -> None:
-    """List all labels (tags) in use."""
+    """List all tags in use."""
     tasks = list_tasks(
         pool=pool,
         pools_dir=_pools_dir(),
@@ -305,7 +305,7 @@ def list_labels(
     for task in tasks:
         all_tags.update(task.tags)
     if not all_tags:
-        console.print("No labels in use.")
+        console.print("No tags in use.")
         return
     for tag in sorted(all_tags):
         console.print(f"  #{tag}")
@@ -378,7 +378,7 @@ def fins_main(
     content: Annotated[str | None, typer.Argument(help="Log a completed task.")] = None,
     pool: Annotated[str | None, typer.Option("-p", "--pool", help="Task pool.")] = None,
     days: Annotated[int | None, typer.Option("-d", "--days", help="Show tasks from the last N days.")] = None,
-    labels: Annotated[str | None, typer.Option("-l", "--labels", help="Filter by label expression.")] = None,
+    tags: Annotated[str | None, typer.Option("-t", "--tags", help="Filter by tag expression.")] = None,
 ) -> None:
     """fins -- completed task view and logging.
 
@@ -401,7 +401,7 @@ def fins_main(
         _do_list(
             pool=pool,
             days=effective_days,
-            labels=labels,
+            tags=tags,
             show_done=True,
         )
 

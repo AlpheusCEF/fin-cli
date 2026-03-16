@@ -323,27 +323,27 @@ def close_task(
     return full_id
 
 
-# --- Label filtering ---
+# --- Tag filtering ---
 
 
-def filter_by_labels(tasks: list[FinTask], expression: str) -> list[FinTask]:
-    """Filter tasks by a boolean label expression.
+def filter_by_tags(tasks: list[FinTask], expression: str) -> list[FinTask]:
+    """Filter tasks by a boolean tag expression.
 
     Supports AND, OR, NOT operators and parentheses.
     Case-insensitive substring matching on tag names.
     """
-    tokens = _tokenize_label_expr(expression)
-    tree = _parse_label_expr(tokens)
-    return [t for t in tasks if _eval_label_expr(tree, t.tags)]
+    tokens = _tokenize_tag_expr(expression)
+    tree = _parse_tag_expr(tokens)
+    return [t for t in tasks if _eval_tag_expr(tree, t.tags)]
 
 
-def _tokenize_label_expr(expr: str) -> list[str]:
-    """Tokenize a label expression into words and parens."""
+def _tokenize_tag_expr(expr: str) -> list[str]:
+    """Tokenize a tag expression into words and parens."""
     padded = expr.replace("(", " ( ").replace(")", " ) ")
     return [t for t in padded.split() if t]
 
 
-def _parse_label_expr(tokens: list[str]) -> object:
+def _parse_tag_expr(tokens: list[str]) -> object:
     """Parse tokens into an expression tree. Precedence: NOT > AND > OR."""
     pos = [0]
 
@@ -386,7 +386,7 @@ def _parse_label_expr(tokens: list[str]) -> object:
     return _parse_or()
 
 
-def _eval_label_expr(tree: object, tags: list[str]) -> bool:
+def _eval_tag_expr(tree: object, tags: list[str]) -> bool:
     """Evaluate a parsed label expression against a tag list."""
     if isinstance(tree, str):
         needle = tree.lower()
@@ -394,13 +394,13 @@ def _eval_label_expr(tree: object, tags: list[str]) -> bool:
     if isinstance(tree, tuple):
         op = tree[0]
         if op == "NOT":
-            return not _eval_label_expr(tree[1], tags)
+            return not _eval_tag_expr(tree[1], tags)
         if op == "AND":
-            return _eval_label_expr(tree[1], tags) and _eval_label_expr(
+            return _eval_tag_expr(tree[1], tags) and _eval_tag_expr(
                 tree[2], tags
             )
         if op == "OR":
-            return _eval_label_expr(tree[1], tags) or _eval_label_expr(
+            return _eval_tag_expr(tree[1], tags) or _eval_tag_expr(
                 tree[2], tags
             )
     return False
