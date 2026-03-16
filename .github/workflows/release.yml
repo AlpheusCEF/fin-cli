@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out alph-cli (dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: AlpheusCEF/alph-cli
+          path: alph-cli
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run tests
+        run: poetry run pytest tests/ -q
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Build sdist
+        run: poetry build --format sdist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "fin ${{ github.ref_name }}"
+          files: dist/*.tar.gz
+          body: |
+            ## Install via Homebrew
+
+            ```bash
+            brew tap AlpheusCEF/tap
+            brew install fin
+            ```
+          generate_release_notes: true
+
+      - name: Update Homebrew tap formula
+        if: ${{ env.HOMEBREW_TAP_TOKEN != '' }}
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        continue-on-error: true
+        run: |
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/AlpheusCEF/homebrew-tap.git
+          cd homebrew-tap
+          bash scripts/update-fin-formula.sh "$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/fin.rb
+          git commit -m "update fin formula to v${VERSION}"
+          git push
