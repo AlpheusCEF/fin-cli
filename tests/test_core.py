@@ -14,7 +14,7 @@ from fin.core import (
     add_completed_task,
     add_task,
     build_node_kwargs,
-    filter_by_labels,
+    filter_by_tags,
     format_short_id,
     get_blocked_tasks,
     list_tasks,
@@ -333,7 +333,7 @@ def test_add_completed_task(
     assert status_call.kwargs["status"] == "archived"
 
 
-# --- filter_by_labels ---
+# --- filter_by_tags ---
 
 
 def _task_with_tags(tags: list[str], node_id: str = "abc123") -> FinTask:
@@ -350,7 +350,7 @@ def _task_with_tags(tags: list[str], node_id: str = "abc123") -> FinTask:
 
 def test_filter_simple_match() -> None:
     tasks = [_task_with_tags(["work"]), _task_with_tags(["personal"], "def456")]
-    result = filter_by_labels(tasks, "work")
+    result = filter_by_tags(tasks, "work")
     assert len(result) == 1
     assert result[0].tags == ["work"]
 
@@ -361,7 +361,7 @@ def test_filter_and() -> None:
         _task_with_tags(["work"], "bbb222"),
         _task_with_tags(["urgent"], "ccc333"),
     ]
-    result = filter_by_labels(tasks, "work AND urgent")
+    result = filter_by_tags(tasks, "work AND urgent")
     assert len(result) == 1
     assert result[0].node_id == "aaa111"
 
@@ -372,7 +372,7 @@ def test_filter_or() -> None:
         _task_with_tags(["personal"], "bbb222"),
         _task_with_tags(["other"], "ccc333"),
     ]
-    result = filter_by_labels(tasks, "work OR personal")
+    result = filter_by_tags(tasks, "work OR personal")
     assert len(result) == 2
 
 
@@ -381,7 +381,7 @@ def test_filter_not() -> None:
         _task_with_tags(["work", "urgent"], "aaa111"),
         _task_with_tags(["work"], "bbb222"),
     ]
-    result = filter_by_labels(tasks, "work AND NOT urgent")
+    result = filter_by_tags(tasks, "work AND NOT urgent")
     assert len(result) == 1
     assert result[0].node_id == "bbb222"
 
@@ -392,7 +392,7 @@ def test_filter_parens() -> None:
         _task_with_tags(["personal"], "bbb222"),
         _task_with_tags(["work", "urgent"], "ccc333"),
     ]
-    result = filter_by_labels(tasks, "(work OR personal) AND NOT urgent")
+    result = filter_by_tags(tasks, "(work OR personal) AND NOT urgent")
     assert len(result) == 2
     ids = {t.node_id for t in result}
     assert ids == {"aaa111", "bbb222"}
@@ -400,7 +400,7 @@ def test_filter_parens() -> None:
 
 def test_filter_case_insensitive() -> None:
     tasks = [_task_with_tags(["Work"])]
-    result = filter_by_labels(tasks, "work")
+    result = filter_by_tags(tasks, "work")
     assert len(result) == 1
 
 

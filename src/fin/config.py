@@ -24,7 +24,7 @@ class FinConfig:
     show_sections: bool = True
     weekdays_only_lookback: bool = True
     auto_today_for_important: bool = True
-    pool_default_label_filters: dict[str, str] = field(default_factory=dict)
+    pool_default_tag_filters: dict[str, str] = field(default_factory=dict)
 
 
 def resolve_pools_dir() -> Path:
@@ -78,8 +78,8 @@ def load_fin_config() -> FinConfig:
             auto_today_for_important=bool(
                 data.get("auto_today_for_important", True)
             ),
-            pool_default_label_filters=dict(
-                data.get("pool_default_label_filters", {})
+            pool_default_tag_filters=dict(
+                data.get("pool_default_tag_filters", {})
             ),
         )
     except (json.JSONDecodeError, ValueError, TypeError):
@@ -147,7 +147,7 @@ def set_default_pool(pool: str) -> FinConfig:
         show_sections=cfg.show_sections,
         weekdays_only_lookback=cfg.weekdays_only_lookback,
         auto_today_for_important=cfg.auto_today_for_important,
-        pool_default_label_filters=cfg.pool_default_label_filters,
+        pool_default_tag_filters=cfg.pool_default_tag_filters,
     )
     save_fin_config(cfg)
     return cfg

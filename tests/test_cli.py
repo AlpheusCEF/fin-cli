@@ -148,11 +148,11 @@ def test_list_with_days(
     assert mock_list.call_args.kwargs.get("days") == 7
 
 
-@patch("fin.cli.filter_by_labels")
+@patch("fin.cli.filter_by_tags")
 @patch("fin.cli.list_tasks")
 @patch("fin.cli.resolve_pools_dir")
 @patch("fin.cli.resolve_global_config_dir")
-def test_list_with_labels(
+def test_list_with_tags(
     mock_config_dir: MagicMock,
     mock_pools_dir: MagicMock,
     mock_list: MagicMock,
@@ -161,7 +161,7 @@ def test_list_with_labels(
     _stub_dirs(mock_pools_dir, mock_config_dir)
     mock_list.return_value = [_make_fin_task(tags=["work"])]
     mock_filter.return_value = [_make_fin_task(tags=["work"])]
-    result = runner.invoke(app, ["list", "-l", "work"])
+    result = runner.invoke(app, ["list", "-t", "work"])
     assert result.exit_code == 0
     mock_filter.assert_called_once()
 
@@ -338,13 +338,13 @@ def test_done_lists_archived(
     assert "archived" in call_kwargs.get("statuses", set())
 
 
-# --- list-labels ---
+# --- tags ---
 
 
 @patch("fin.cli.list_tasks")
 @patch("fin.cli.resolve_pools_dir")
 @patch("fin.cli.resolve_global_config_dir")
-def test_list_labels(
+def test_tags_command(
     mock_config_dir: MagicMock,
     mock_pools_dir: MagicMock,
     mock_list: MagicMock,
@@ -354,7 +354,7 @@ def test_list_labels(
         _make_fin_task(tags=["work", "urgent"]),
         _make_fin_task(node_id="def456abc123", tags=["work", "review"]),
     ]
-    result = runner.invoke(app, ["list-labels"])
+    result = runner.invoke(app, ["tags"])
     assert result.exit_code == 0
     assert "#work" in result.output
     assert "#urgent" in result.output
@@ -364,16 +364,16 @@ def test_list_labels(
 @patch("fin.cli.list_tasks")
 @patch("fin.cli.resolve_pools_dir")
 @patch("fin.cli.resolve_global_config_dir")
-def test_list_labels_empty(
+def test_tags_command_empty(
     mock_config_dir: MagicMock,
     mock_pools_dir: MagicMock,
     mock_list: MagicMock,
 ) -> None:
     _stub_dirs(mock_pools_dir, mock_config_dir)
     mock_list.return_value = []
-    result = runner.invoke(app, ["list-labels"])
+    result = runner.invoke(app, ["tags"])
     assert result.exit_code == 0
-    assert "no labels" in result.output.lower()
+    assert "no tags" in result.output.lower()
 
 
 # --- pool commands ---
