@@ -1,1 +1,1 @@
-/Users/cpettet/git/chasemp/AlpheusCEF/agents/commands/release-alph.md
+/Users/cpettet/git/chasemp/AlpheusCEF/coding-agents/commands/release-alph.md
