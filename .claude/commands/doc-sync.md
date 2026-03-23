@@ -1,1 +1,1 @@
-/Users/cpettet/git/chasemp/AlpheusCEF/agents/commands/doc-sync.md
+/Users/cpettet/git/chasemp/AlpheusCEF/coding-agents/commands/doc-sync.md

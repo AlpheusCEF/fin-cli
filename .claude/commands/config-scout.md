@@ -1,1 +1,1 @@
-/Users/cpettet/git/chasemp/AlpheusCEF/agents/commands/config-scout.md
+/Users/cpettet/git/chasemp/AlpheusCEF/coding-agents/commands/config-scout.md
